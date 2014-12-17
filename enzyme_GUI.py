@@ -258,7 +258,7 @@ class EnzymeSelector(DNApyBaseClass):
 			offset2     = self.enzymes[enzyme]["cut5_2"] 	# offset 2 not yet implimented
 
 			# handle the cuts
-			iterator    = r.finditer(dnaseq)
+			iterator    = r.finditer(wholeDNA2Inspect)
 			for match in iterator:
 				newEnz = []
 				modulo = len(dnaseq) # all positions are modulo len(dnaseq)
