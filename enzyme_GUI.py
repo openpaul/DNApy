@@ -238,13 +238,19 @@ class EnzymeSelector(DNApyBaseClass):
 					  # syntax:
 					  # [[name, start, stop, cut 1, cut 2, sequence],[...]]
 		dnaseq      = genbank.gb.gbfile["dna"]
-		# if circular extend dna to simulate a circle
-		# missing feature!
-		#print dnaseq
+		# circular dna
+		# we just inspect the region +-100
+		# to find enzyme, which cut near 0 in a ciclic plasmid
+		if genbank.gb.gbfile['locus']['topology'] == 'circular':
+			circularDnaHelper = dnaseq[:100] # helper of 200bp from 0 to 100
+		else:
+			circularDnaHelper = ''
+
+		wholeDNA2Inspect = '%s%s' % (dnaseq, circularDnaHelper) # dna width circular helper added
 
 		# loop all the selected enzymes
 		for enzyme in selectedEnzymes:
-			newEnz = []
+			
 			# load the regexp of the enzyme
 			r           = self.enzymes[enzyme]["regexp"]
 			# get the cut position
@@ -254,18 +260,22 @@ class EnzymeSelector(DNApyBaseClass):
 			# handle the cuts
 			iterator    = r.finditer(dnaseq)
 			for match in iterator:
+				newEnz = []
+				modulo = len(dnaseq) # all positions are modulo len(dnaseq)
 				# add offset to match position
 				newEnz.append(str(enzyme))
-				newEnz.append(match.start()+1) #the DNA counting is inclusive. For instance a selection of 1812, 1818 is actually 7 nucleotides long. We don't want that.
-				newEnz.append(match.end())
-				newEnz.append(match.start() + offset1)
+				newEnz.append((match.start()+1) % modulo) #the DNA counting is inclusive. For instance a selection of 1812, 1818 is actually 7 nucleotides long. We don't want that.
+				newEnz.append(match.end() % modulo)
+				newEnz.append((match.start() + offset1) % modulo)
 				if offset2 == 0: # if it just cuts once, we'll say None to the second cut
 					newEnz.append(None)
 				else:
-					newEnz.append(match.start() + offset2)
-				newEnz.append(dnaseq[match.start():match.end()])
-				# save the new Enzyme 
-				restrictionsitesList.append(newEnz)
+					newEnz.append((match.start() + offset2) % modulo)
+				newEnz.append(wholeDNA2Inspect[match.start():match.end()])
+				# save the new Enzyme if its new
+				if newEnz not in restrictionsitesList:
+					restrictionsitesList.append(newEnz)
+
 		return restrictionsitesList
 	
 	def handleCut(self, enzyme, n):
