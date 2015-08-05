@@ -52,8 +52,8 @@ Please let us know about any bugs you encounter, using the issue tracker here on
 
 
 
-Not Yet Implemented Software features (and priority list)
-=====
+##Not Yet Implemented Software features (and priority list)
+
 
 * Analysis of sequence reads in the .ab1 format
 * Display and handle linear sequences
@@ -81,11 +81,11 @@ Not Yet Implemented Software features (and priority list)
 * Simulate restriction digest and/or ligation
 
 * (Multiple) Sequence alignment
+* Make DNApy installable using a common package manager. Thus prepare a tar.gz package with the appropriate installation files.
 
 
 
-Project Website
-=====
+##Project Website
 The project has its own website where announcements are made. While all of developing happens here on GitHub releases and such may be published on the website instead:
 
 http://dnapy.org/
