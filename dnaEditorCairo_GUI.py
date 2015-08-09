@@ -512,39 +512,60 @@ class TextEdit(DNApyBaseDrawingClass):
 					# move there, but above the line
 					yOffset = ys - level * (nameheight + 1)
 					self.ctx.move_to(xs,yOffset)
-					# print text as path
 					self.ctx.text_path(name)
 					textpath 	= self.ctx.copy_path()
 					self.ctx.new_path()
 					
 					# make a box, highlighting the recognition site
 					# honor that there might be a line break
-					height 		= 2*he + self.lineGap
+					height 		= 2 * he + self.lineGap
 					self.ctx.move_to(xs,ys)
-					if ye != ys:
+					if ye == ys:
+						width 		= xe - xs + we
+						self.ctx.rectangle(xs, ys, width, height)
+					else:
 						width = self.w + 5 - xs #  TODO remove 5 as soon as we know why it is here
 						self.ctx.rectangle(xs, ys, width, height)
 						self.ctx.move_to(xe, ye)
-						width 		= xe
-						self.ctx.rectangle(self.dX, ye, width, height)
-					else:
-						width 		= xe - xs + we
-						self.ctx.rectangle(xs, ys, width, height)
+						width2 		= xe
+						self.ctx.rectangle(self.dX, ye, width2, height)
 					boxPath 	= self.ctx.copy_path()
 					self.ctx.new_path()
 					
 					# make a line, representing the cut
+					# honor that there might be a line break
 					xC51, yC51, wC51, hC51 = self.senseLayout.index_to_pos(start + enzymes[e].c51)
 					xC31, yC31, wC31, hC31 = self.senseLayout.index_to_pos(start + enzymes[e].c31)
-					xC51 = xC51 / pango.SCALE + 1
-					yC51 = yC51 / pango.SCALE + self.sY
-					tHeight = hC51 / pango.SCALE
-					xC31 = xC31 / pango.SCALE + 1
-					yC31 = yC31 / pango.SCALE + self.sY
-					self.ctx.move_to(xC51, yC51)
-					self.ctx.line_to(xC51, yC51 + tHeight + 0.5 * self.lineGap)
-					self.ctx.line_to(xC31, yC31 + tHeight + 0.5 * self.lineGap)
-					self.ctx.line_to(xC31, yC31 + 2 * tHeight +  self.lineGap)
+					xC51 		= xC51 / pango.SCALE + 1
+					yC51 		= yC51 / pango.SCALE + self.sY
+					tHeight 	= hC51 / pango.SCALE
+					xC31 		= xC31 / pango.SCALE + 1
+					yC31 		= yC31 / pango.SCALE + self.sY
+					if yC51 == yC31:
+						self.ctx.move_to(xC51, yC51)
+						self.ctx.line_to(xC51, yC51 + tHeight + 0.5 * self.lineGap)
+						self.ctx.line_to(xC31, yC31 + tHeight + 0.5 * self.lineGap)
+						self.ctx.line_to(xC31, yC31 + 2 * tHeight +  self.lineGap)
+					else:
+						self.ctx.move_to(xC51, yC51)
+						self.ctx.line_to(xC51, yC51 + tHeight + 0.5 * self.lineGap)
+						if start + enzymes[e].c51 <= start + enzymes[e].c31:
+							xE = self.w + 5 # TODO remove 5
+							self.ctx.line_to(xE, yC51 + tHeight + 0.5 * self.lineGap)
+							# move to next line
+							self.ctx.move_to(self.dX, yC31+ tHeight + 0.5 * self.lineGap)
+							self.ctx.line_to(xC31, yC31 + tHeight + 0.5 * self.lineGap)
+							self.ctx.line_to(xC31, yC31 + 2 * tHeight + self.lineGap)
+						else:
+							self.ctx.line_to(self.dX , yC51 + tHeight + 0.5 * self.lineGap)
+							# move to next line
+							xE = self.w + 5 # TODO remove 5
+							self.ctx.move_to(xE, yC31+ tHeight + 0.5 * self.lineGap)
+							self.ctx.line_to(xC31, yC31 + tHeight + 0.5 * self.lineGap)
+							self.ctx.line_to(xC31, yC31 + 2 * tHeight + self.lineGap)
+						
+	
+						
 					linepath = self.ctx.copy_path()
 					self.ctx.new_path()
 					# save paths
