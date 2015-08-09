@@ -99,7 +99,7 @@ class TextEdit(DNApyBaseDrawingClass):
 		self.dX				= 8 	# border left and right
 		self.textSpacing 	= 80	# seperation of lines
 		self.fontsize 		= 9		# line size
-		self.lineGap 		= 6
+		self.lineGap 		= 3
 		
 		# interactive cursor
 		self.PositionPointer 		= 1
@@ -297,9 +297,10 @@ class TextEdit(DNApyBaseDrawingClass):
 		x1, y1, w1, h1 	= self.senseLayout.index_to_pos(1)
 		x2, y2, w2, h2 	= self.senseLayout.index_to_pos(1+self.lineLength)
 		self.lineHeight = abs(y1 - y2) / pango.SCALE
+		self.fontHeight	= h1/pango.SCALE
 		
 		# print anti sense strain
-		self.ctx.move_to(self.dX,self.sY + self.fontsize + self.lineGap)
+		self.ctx.move_to(self.dX,self.sY + self.fontHeight + self.lineGap)
 		layout.set_markup(antiText)
 		self.pango.update_layout(layout)
 		self.pango.show_layout(layout)
@@ -478,9 +479,12 @@ class TextEdit(DNApyBaseDrawingClass):
 		# get storage
 		enzmymesOld = self.cairoStorage['enzymes']
 		enzymes 	= genbank.restriction_sites
+		
+	
 
 		if enzmymesOld is not enzymes: # != wont work, for some unknwon reason
-			nameheight = 9 # px
+			self.drawn_Enzyme_locations = []
+			nameheight = 10 # px
 			self.ctx.select_font_face('Arial', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 			self.ctx.set_font_size(nameheight)
 			dna 			= self.dna
@@ -493,18 +497,42 @@ class TextEdit(DNApyBaseDrawingClass):
 					name, start, end, cut51, cut52, dnaMatch = site
 					hitname 	= self.hitName(name, index)
 					
+					self.drawn_Enzyme_locations, level = self.find_overlap(self.drawn_Enzyme_locations, (start, end))				
+					
 					# get position to draw
 					xs, ys, ws, hs = self.senseLayout.index_to_pos(start)
 					xs = xs / pango.SCALE
 					ys = ys / pango.SCALE + self.sY
 					hs = hs / pango.SCALE
+					xe, ye, we, he = self.senseLayout.index_to_pos(end)
+					xe = xe / pango.SCALE
+					ye = ye / pango.SCALE + self.sY
+					he = he / pango.SCALE
+					we = we / pango.SCALE
 					# move there, but above the line
-					y = ys# - hs
-					self.ctx.move_to(xs,y)
+					yOffset = ys - level * (nameheight + 1)
+					self.ctx.move_to(xs,yOffset)
 					# print text as path
 					self.ctx.text_path(name)
-					textpath = self.ctx.copy_path()
+					textpath 	= self.ctx.copy_path()
 					self.ctx.new_path()
+					
+					# make a box, highlighting the recognition site
+					# honor that there might be a line break
+					height 		= 2*he + self.lineGap
+					self.ctx.move_to(xs,ys)
+					if ye != ys:
+						width = self.w + 5 - xs #  TODO remove 5 as soon as we know why it is here
+						self.ctx.rectangle(xs, ys, width, height)
+						self.ctx.move_to(xe, ye)
+						width 		= xe
+						self.ctx.rectangle(self.dX, ye, width, height)
+					else:
+						width 		= xe - xs + we
+						self.ctx.rectangle(xs, ys, width, height)
+					boxPath 	= self.ctx.copy_path()
+					self.ctx.new_path()
+					
 					# make a line, representing the cut
 					xC51, yC51, wC51, hC51 = self.senseLayout.index_to_pos(start + enzymes[e].c51)
 					xC31, yC31, wC31, hC31 = self.senseLayout.index_to_pos(start + enzymes[e].c31)
@@ -514,26 +542,33 @@ class TextEdit(DNApyBaseDrawingClass):
 					xC31 = xC31 / pango.SCALE + 1
 					yC31 = yC31 / pango.SCALE + self.sY
 					self.ctx.move_to(xC51, yC51)
-					self.ctx.line_to(xC51, yC51 + tHeight + 0.25 * self.lineGap)
-					self.ctx.line_to(xC31, yC31 + tHeight + 0.25 * self.lineGap)
-					self.ctx.line_to(xC31, yC31 + 2 * tHeight + 0.5* self.lineGap)
+					self.ctx.line_to(xC51, yC51 + tHeight + 0.5 * self.lineGap)
+					self.ctx.line_to(xC31, yC31 + tHeight + 0.5 * self.lineGap)
+					self.ctx.line_to(xC31, yC31 + 2 * tHeight +  self.lineGap)
 					linepath = self.ctx.copy_path()
 					self.ctx.new_path()
-					enzymesPaths[hitname] = (textpath, linepath)
-					
+					# save paths
+					enzymesPaths[hitname] = (textpath, linepath, boxPath)
 					# raise index
 					index = index + 1
+					
 			# update storage
 			self.cairoStorage['enzymes'] 	= enzymes				
 			self.cairoStorage['ePaths'] 	= enzymesPaths
 		
 		# draw enzymes:
 		self.ctx.set_line_width(1)
-		self.ctx.set_source_rgba(0.6,0.3,0.3 , 1) # Solid color
 		for e in self.cairoStorage['ePaths']:
-			path, pathc = self.cairoStorage['ePaths'][e]
+			path, pathc, pathBox = self.cairoStorage['ePaths'][e]
+			# box
+			self.ctx.set_source_rgba(0,0,0 , 0.15) # Solid color
+			self.ctx.append_path(pathBox)
+			self.ctx.fill()
+			# text
+			self.ctx.set_source_rgba(0,0.5,0.015 , 1) # Solid color
 			self.ctx.append_path(path)
 			self.ctx.fill()
+			# line
 			self.ctx.append_path(pathc)
 			self.ctx.stroke()
 	
@@ -627,8 +662,9 @@ class TextEdit(DNApyBaseDrawingClass):
 			x, y, w, h 	= self.senseLayout.index_to_pos(index)
 			x 			= x / pango.SCALE + self.dX
 			y 			= (y / pango.SCALE) + self.sY
+			h 			= h / pango.SCALE
 			y1 			= y 
-			y2 			= y + 0.5 * self.lineHeight
+			y2 			= y + 2*h + self.lineGap
 			
 			# move cursor if its the line end:
 			if self.PositionPointerEnd == True:
@@ -645,7 +681,7 @@ class TextEdit(DNApyBaseDrawingClass):
 		if self.cairoStorage['cursorPath'] != None:
 			# draw cursor:
 			self.ctx.append_path(self.cairoStorage['cursorPath'])
-			self.ctx.set_line_width(0.3)
+			self.ctx.set_line_width(0.5)
 			self.ctx.set_source_rgba(0,0,0, 1) # Solid color
 			self.ctx.stroke()
 	
@@ -886,11 +922,11 @@ class TextEdit(DNApyBaseDrawingClass):
 		Updates DNA selection.
 		'''
 		##selection = self.get_selection()
-		a, b, none = selection			# new to enable selections over 0
+		a, b, zero = selection			# new to enable selections over 0
 		# if start after end, swap them
 		if a > b and b != -1:
 			a,b = b,a
-		selection = (a, b , -1)
+		selection = (a, b , zero)
 		genbank.dna_selection = selection
 		#self.update_globalUI()
 		#self.update_ownUI()
