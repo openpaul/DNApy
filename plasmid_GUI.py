@@ -245,7 +245,12 @@ class drawPlasmid(DNApyBaseDrawingClass):
 	def set_dna_selection(self, selection):
 		'''Receives requests for DNA selection and then sends it.'''
 		assert type(selection) == tuple, 'Error, dna selection must be a tuple'
-		selection = (int(selection[0]), int(selection[1]), int(selection[2]))
+		##selection = self.get_selection()
+		a, b, zero = selection			# new to enable selections over 0
+		# if start after end, swap them
+		if a > b and b != -1:
+			a,b = b,a
+		selection = (a, b , zero)
 		genbank.dna_selection = selection
 		self.plasmidstore.interaction["selection"] = selection
 		self.update_globalUI()
@@ -397,7 +402,7 @@ class drawPlasmid(DNApyBaseDrawingClass):
 		''' handle left ouseclick up'''
 		# get selection
 		pos1, pos2, zero 	= self.plasmidstore.interaction["selection"]
-		if self.plasmidstore.interaction["leftDown"] == True and pos2 != -1:
+		if self.plasmidstore.interaction["leftDown"] != False and pos2 != -1:
 			# selection is finish
 			self.plasmidstore.interaction["leftDown"] = False
 			# save the mouse position
@@ -435,7 +440,7 @@ class drawPlasmid(DNApyBaseDrawingClass):
 			x, y = self.ScreenToClient(wx.GetMousePosition())
 			x2, y2 = self.ctx.device_to_user(x,y)
 			pos = self.cartesian2position(x2,y2)
-			self.plasmidstore.interaction["leftDown"] = True
+			self.plasmidstore.interaction["leftDown"] = pos
 			self.plasmidstore.interaction["selection"] = (pos, -1, -1)
 		else:
 			# remove selection
@@ -467,26 +472,28 @@ class drawPlasmid(DNApyBaseDrawingClass):
 		'''When mouse is moved with the left button down determine the DNA selection from angle generated at mouse down and mouse move event.'''
 		
 		
-		if event.Dragging() and event.LeftIsDown() and self.plasmidstore.interaction["leftDown"] == True:
+		if event.Dragging() and event.LeftIsDown() and self.plasmidstore.interaction["leftDown"] != False:
 			# save the mouse position
 			x, y 				= self.ScreenToClient(wx.GetMousePosition())
 			x2, y2 				= self.ctx.device_to_user(x,y)
 			pos 				= self.cartesian2position(x2,y2)
 			pos1, pos2, zero 	= self.plasmidstore.interaction["selection"]
-			self.plasmidstore.interaction["selection"] = (pos1, pos, zero)
+			if pos1 == self.plasmidstore.interaction["leftDown"]:
+				lastPos = pos2
+			else:
+				lastPos = pos1
+			#self.plasmidstore.interaction["selection"] = (pos1, pos, zero)
 			
 			# if we have a sudden increase, we might have moven over zero
-			if abs(pos2 - pos) > self.dnaLength/2 and pos2 != -1:
+			if abs(lastPos - pos) > self.dnaLength/2 and pos2 != -1:
 				zero = zero * -1 # turn zero around
-				self.plasmidstore.interaction["selection"] = (pos1, pos, zero)
+			
+			#self.plasmidstore.interaction["selection"] = (pos1, pos, zero)
 
 			#set genebank selection
-			self.saveSelection(pos1, pos, zero)
+			self.saveSelection(self.plasmidstore.interaction["leftDown"], pos, zero)
 			self.update_ownUI()
 
-
-
-		
 
 		# check if something is beneath the mousecursor
 		oldhit 	= self.Highlight
@@ -499,28 +506,6 @@ class drawPlasmid(DNApyBaseDrawingClass):
 
 				
 		
-		
-		#elif len(self.selectionDrawing) < 2: # only hover position, if none is selected --> maybe use two variables to make both possible?
-			# no feature to highlight, but maybe selection hover?
-		#	self.Highlight = None
-
-
-			# check if we are in the "hover area"
-		#	inArea = self.HitTestMarkerArea()
-
-		#	if inArea == True:
-		#		# get the mouse position
-		#		x, y = self.ScreenToClient(wx.GetMousePosition())
-		#		x2, y2 = self.ctx.device_to_user(x,y)
-		#		self.selectionDrawing = [] # empty it
-		#		self.selectionDrawing.append(self.cartesian2radial(x2,y2))
-		#		self.update_ownUI()
-		#	elif oldhit != hit:
-		#		self.update_ownUI()
-		#	elif len(self.selectionDrawing) == 1: # TODO
-		#		self.selectionDrawing = [] # empty it so the hover line wont be seen all the time
-		#		self.update_ownUI()
-
 
 
 
